@@ -1,0 +1,11 @@
+Instruction              	IF		ID		EX		Mem		WB		RAW		WAR		WAW		Struct
+L.D F1,0(R4)             	6		7		8		16		17		0		0		0		1		
+DADDI R4,R4,4            	7		8		16		17		18		0		0		0		1		
+MUL.D F3,F2,F3           	8		9		15		-1		16		0		0		0		0		
+HLT                      	9		10		-1		-1		-1		0		0		0		0		
+HLT                      	20		-1		-1		-1		-1		0		0		0		0		
+
+Total number of requests to instruction cache  5
+Total number of instruction cache hit  3
+Total number of requests to data cache  2
+Total number of data cache hit  1
