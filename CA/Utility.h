@@ -8,7 +8,7 @@ class Utility{
 
 public:
 	bool static isStringNumber(const string inputString);
-
+	void static toUpper(string & inputString);
 };
 
 

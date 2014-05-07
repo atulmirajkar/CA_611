@@ -27,6 +27,16 @@ void main(int args, char * argv[])
 	catch(const char * exceptStr)
 	{
 		cout<<exceptStr<<endl;
+		ofstream outputFile;
+		outputFile.open(argv[5]);
+		outputFile<<exceptStr<<endl;
+	}
+	catch(string exceptStr)
+	{
+		cout<<exceptStr<<endl;
+		ofstream outputFile;
+		outputFile.open(argv[5]);
+		outputFile<<exceptStr<<endl;
 	}
 }
 
@@ -101,6 +111,7 @@ void Simulator::readData(char * dataFilePath)
 }
 void Simulator::readConfig(char * configFilePath)
 {
+	int lineNumber = 0;
 	string configFilePathStr(configFilePath);
 	//instruction map stores values for number of cycles in ex stage(ex + mem)
 	this->symbolTable["HLT"]=SymbolTableAttr(OPER,0,REGEX_EMPTY,EMPTY_FORMAT,"",false);
@@ -126,6 +137,7 @@ void Simulator::readConfig(char * configFilePath)
 		vector<string> tokens2;
 		while(getline(ifs,line))
 		{
+			lineNumber++;
 			tokenize(line,":",tokens);
 			tokenize(tokens[1],",",tokens2);
 
@@ -139,29 +151,74 @@ void Simulator::readConfig(char * configFilePath)
 			if(tokens[0].compare("FP adder")==0)
 			{
 				this->FPAdderStages = atoi(tokens2[0].c_str());
-				this->isFPAdderPipe = tokens2[1].compare("yes")==0?true:false;
+				if(this->FPAdderStages<=0)
+				{
+					string errorString = "Error: Invalid config file: invalid cycle number [Line ";
+					errorString.append(std::to_string((long double)lineNumber));
+					errorString.append("]");
+					throw errorString;
+				}
+				Utility::toUpper(tokens2[1]);
+				this->isFPAdderPipe = tokens2[1].compare("YES")==0?true:false;
 			}
 			else if(tokens[0].compare("FP Multiplier")==0)
 			{
 				this->FPMultStages = atoi(tokens2[0].c_str());
-				this->isFPMultPipe = tokens2[1].compare("yes")==0?true:false;
+				if(this->FPMultStages<=0)
+				{
+					string errorString = "Error: Invalid config file: invalid cycle number [Line ";
+					errorString.append(std::to_string((long double)lineNumber));
+					errorString.append("]");
+					throw errorString;
+				}
+				Utility::toUpper(tokens2[1]);
+				this->isFPMultPipe = tokens2[1].compare("YES")==0?true:false;
 			}
 			else if(tokens[0].compare("FP divider")==0)
 			{
 				this->FPDivStages = atoi(tokens2[0].c_str());
-				this->isFPDivPipe = tokens2[1].compare("yes")==0?true:false;
+				if(this->FPDivStages<=0)
+				{
+					string errorString = "Error: Invalid config file: invalid cycle number [Line ";
+					errorString.append(std::to_string((long double)lineNumber));
+					errorString.append("]");
+					throw errorString;
+				}
+				Utility::toUpper(tokens2[1]);
+				this->isFPDivPipe = tokens2[1].compare("YES")==0?true:false;
 			}
 			else if(tokens[0].compare("Main memory")==0)
 			{
 				this->memAccessCycles = atoi(tokens2[0].c_str());
+				if(this->memAccessCycles<=0)
+				{
+					string errorString = "Error: Invalid config file: invalid cycle number [Line ";
+					errorString.append(std::to_string((long double)lineNumber));
+					errorString.append("]");
+					throw errorString;
+				}
 			}
 			else if(tokens[0].compare("I-Cache")==0)
 			{
 				this->iCacheAccessCycles = atoi(tokens2[0].c_str());
+				if(this->iCacheAccessCycles<=0)
+				{
+					string errorString = "Error: Invalid config file: invalid cycle number [Line ";
+					errorString.append(std::to_string((long double)lineNumber));
+					errorString.append("]");
+					throw errorString;
+				}
 			}
 			else if(tokens[0].compare("D-Cache")==0)
 			{
 				this->dCacheAccessCycles = atoi(tokens2[0].c_str());
+				if(this->dCacheAccessCycles<=0)
+				{
+					string errorString = "Error: Invalid config file: invalid cycle number [Line ";
+					errorString.append(std::to_string((long double)lineNumber));
+					errorString.append("]");
+					throw errorString;
+				}
 			}
 
 			tokens.clear();
@@ -192,11 +249,13 @@ void Simulator::readInstructions(char * instructionFilePath)
 	int instructionNumber = 0;
 	ifstream ifs;
 	ifs.open(instructionFilePath);
+	int lineNumber = 0;
 	if(ifs.is_open())
 	{
 		string line= "";
 		while(getline(ifs,line))
 		{
+			lineNumber++;
 			vector<string> tokenVector;
 			//look for labels
 			tokenize(line,":",tokenVector);
@@ -211,7 +270,17 @@ void Simulator::readInstructions(char * instructionFilePath)
 			//parse the instruction
 			
 			SourceLine * instr = new SourceLine();
-			parseInstruction(instr,line);
+			try{
+				parseInstruction(instr,line);
+			}
+			catch(char * exceptStr)
+			{
+				string errorString(exceptStr);
+				errorString.append(" [Line ");
+				errorString.append(std::to_string((long double)lineNumber));
+				errorString.append("]");
+				throw errorString;
+			}
 			//add actual line as well
 			instr->actualSourceLine = line;
 			this->instructionVector.push_back(*instr);
@@ -230,6 +299,7 @@ void Simulator::parseInstruction(SourceLine * instr, string instrLine)
 		throw "Instruction File Parsing Error";
 	}
 	//convert to upper case
+	Utility::toUpper(tokenVector[0]);
 	instr->opCode = tokenVector[0];
 	//if J or HLT return
 	if(tokenVector.size()==1)

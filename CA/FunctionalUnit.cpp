@@ -69,7 +69,7 @@ void  FunctionalUnit::displayCompletionTime(const char * outputFilePath)
 	outputFile<<"IF\t\t";
 	outputFile<<"ID\t\t";
 	outputFile<<"EX\t\t";
-	outputFile<<"Mem\t\t";
+	//outputFile<<"Mem\t\t";
 	outputFile<<"WB\t\t";
 	outputFile<<"RAW\t\t";
 	outputFile<<"WAR\t\t";
@@ -84,18 +84,64 @@ void  FunctionalUnit::displayCompletionTime(const char * outputFilePath)
 		outputFile<<instructionStr<<"\t";
 		for(int j=0;j<5;j++)
 		{
+			//no need to display Ex stage
+			if(j==2)
+			{
+				continue;
+			}
 			cout<<completionVector[i]->completionTime[j]<<"\t";
-			outputFile<<completionVector[i]->completionTime[j]<<"\t\t";
+			//Instructions that do not have memory stages have their completion time from Ex stage
+			if(j==3 && completionVector[i]->completionTime[j]==-1 && completionVector[i]->completionTime[j-1]!=-1)
+			{
+				outputFile<<completionVector[i]->completionTime[j-1]<<"\t\t";
+				continue;
+			}
+			if(completionVector[i]->completionTime[j]==-1)
+			{
+				outputFile<<" "<<"\t\t";
+			}
+			else
+			{
+				outputFile<<completionVector[i]->completionTime[j]<<"\t\t";
+			}
 		}
 		cout<<completionVector[i]->raw<<"\t";
 		cout<<completionVector[i]->war<<"\t";
 		cout<<completionVector[i]->waw<<"\t";
 		cout<<completionVector[i]->structural<<"\t";
 
-		outputFile<<completionVector[i]->raw<<"\t\t";
-		outputFile<<completionVector[i]->war<<"\t\t";
-		outputFile<<completionVector[i]->waw<<"\t\t";
-		outputFile<<completionVector[i]->structural<<"\t\t";
+		if(completionVector[i]->raw)
+		{
+			outputFile<<"Y"<<"\t\t";
+		}
+		else
+		{
+			outputFile<<"N"<<"\t\t";
+		}
+		if(completionVector[i]->war)
+		{
+			outputFile<<"Y"<<"\t\t";
+		}
+		else
+		{
+			outputFile<<"N"<<"\t\t";
+		}
+		if(completionVector[i]->waw)
+		{
+			outputFile<<"Y"<<"\t\t";
+		}
+		else
+		{
+			outputFile<<"N"<<"\t\t";
+		}
+		if(completionVector[i]->structural)
+		{
+			outputFile<<"Y"<<"\t\t";
+		}
+		else
+		{
+			outputFile<<"N"<<"\t\t";
+		}
 
 		outputFile<<endl;
 		cout<<endl;
@@ -469,8 +515,17 @@ void InstrDecode::checkStatus(Simulator * simPtr)
 		
 		if(!isThereAFunctionalUnit(instr,simPtr))
 		{
-
-			processBranchInstruction(instr,simPtr);
+			try{
+				processBranchInstruction(instr,simPtr);
+			}
+			catch(char * exceptStr)
+			{
+				string exceptString(exceptStr);
+				exceptString.append(" Line[");
+				exceptString.append(std::to_string(long double(instructionNumber)));
+				exceptString.append("]");
+				throw exceptString;
+			}
 			if(strcmpi(instr.opCode.c_str(),"hlt")==0)
 			{
 				//if branch taken
@@ -502,13 +557,6 @@ void InstrDecode::checkStatus(Simulator * simPtr)
 		}
 
 			
-		//if push_backToCorrectFunctionalUnit succeeds then proceed with the next instr for decode else stall decode
-		//if(!push_backToCorrectFunctionalUnit(simPtr->instructionVector[instructionNumber-1],simPtr,instructionNumber))
- 		if(!push_backToCorrectFunctionalUnit(instr,simPtr,instructionNumber))
-		{
-			completionVector[instructionNumber-1]->structural = true;
-			return;
-		}
 		//if successful lock destination register
 		//if lock fails there is WAW hazard - stall in that case
 		if(!setLock(simPtr,instr))
@@ -516,6 +564,15 @@ void InstrDecode::checkStatus(Simulator * simPtr)
 			completionVector[instructionNumber-1]->waw = true;
 			return;
 		}
+
+		//if push_backToCorrectFunctionalUnit succeeds then proceed with the next instr for decode else stall decode
+		//if(!push_backToCorrectFunctionalUnit(simPtr->instructionVector[instructionNumber-1],simPtr,instructionNumber))
+ 		if(!push_backToCorrectFunctionalUnit(instr,simPtr,instructionNumber))
+		{
+			completionVector[instructionNumber-1]->structural = true;
+			return;
+		}
+		
 		FunctionalUnit::decodedeque.pop_front();
 		completionVector[instructionNumber-1]->completionTime[1] = FunctionalUnit::clockTick;
 		cyclesLeftForInstr = numberOfCycles;
@@ -543,6 +600,10 @@ void InstrDecode::processBranchInstruction(SourceLine & instr,Simulator * simPtr
 		{
 			FunctionalUnit::branchTakenInstrNumberPair.first = true;
 			FunctionalUnit::branchTakenSameCycle = true;
+			if(simPtr->labelInstMap.find(instr.operands[0])==simPtr->labelInstMap.end())
+			{
+				throw "Error: Invalid instruction: missing label ";
+			}
 			FunctionalUnit::branchTakenInstrNumberPair.second = simPtr->labelInstMap[instr.operands[0]];
 		}
 	}
@@ -1270,7 +1331,9 @@ void InstrExecute::compareInstructionPriority(std::pair<int,SourceLine> numberLi
 	//instruction 1
 	if(simPtr->symbolTable[numberLinePair1.second.opCode].fuUsed==FU_INTEGER)
 	{
-		numberOfEx1=simPtr->memAccessCycles;
+		//hardcoding 2 - because true for any case
+		//numberOfEx1=simPtr->memAccessCycles;
+		numberOfEx1=2;
 	}
 	else if(simPtr->symbolTable[numberLinePair1.second.opCode].fuUsed==FU_FP_ADDER)
 	{
@@ -1289,7 +1352,9 @@ void InstrExecute::compareInstructionPriority(std::pair<int,SourceLine> numberLi
 	//instruction2
 	if(simPtr->symbolTable[numberLinePair2.second.opCode].fuUsed==FU_INTEGER)
 	{
-		numberOfEx2 = simPtr->memAccessCycles;
+		//hardcoding 2 - because true for any case
+		//numberOfEx2 = simPtr->memAccessCycles;
+		numberOfEx2 = 2;
 	}
 	else if(simPtr->symbolTable[numberLinePair2.second.opCode].fuUsed==FU_FP_ADDER)
 	{
