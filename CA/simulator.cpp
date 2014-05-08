@@ -16,6 +16,12 @@ void main(int args, char * argv[])
 	//argv[4] - config.txt
 	//argv[5] - result.txt
 	try{
+		if(args<6)
+		{
+			//throw "Invalid Number of arguments";
+			cout<<"Invalid Number of arguments";
+			return;
+		}
 		Simulator sim;
 		sim.readConfig(argv[4]);
 		sim.readInstructions(argv[1]);
@@ -30,6 +36,7 @@ void main(int args, char * argv[])
 		ofstream outputFile;
 		outputFile.open(argv[5]);
 		outputFile<<exceptStr<<endl;
+		outputFile.close();
 	}
 	catch(string exceptStr)
 	{
@@ -37,6 +44,15 @@ void main(int args, char * argv[])
 		ofstream outputFile;
 		outputFile.open(argv[5]);
 		outputFile<<exceptStr<<endl;
+		outputFile.close();
+	}
+	catch(std::exception & e)
+	{
+		cout<<e.what()<<endl;
+		ofstream outputFile;
+		outputFile.open(argv[5]);
+		outputFile<<e.what()<<endl;
+		outputFile.close();
 	}
 }
 
@@ -253,9 +269,11 @@ void Simulator::readInstructions(char * instructionFilePath)
 	if(ifs.is_open())
 	{
 		string line= "";
+		string actualLine ="";
 		while(getline(ifs,line))
 		{
 			lineNumber++;
+			actualLine  = line;
 			vector<string> tokenVector;
 			//look for labels
 			tokenize(line,":",tokenVector);
@@ -282,7 +300,7 @@ void Simulator::readInstructions(char * instructionFilePath)
 				throw errorString;
 			}
 			//add actual line as well
-			instr->actualSourceLine = line;
+			instr->actualSourceLine = actualLine;
 			this->instructionVector.push_back(*instr);
 
 		}//while lines in file
@@ -350,7 +368,7 @@ void Simulator::readRegisters(char* registerFilePath)
 			//trim and remove whitespaces
 			line = trim(line);
 			removeWhiteSpace(line);
-			itoa(registerCount,buffer,10);
+			_itoa(registerCount,buffer,10);
 			registerMap[reg.append(buffer)] = getIntFromBinaryString(line);
 			reg = "r";
 			registerCount++;

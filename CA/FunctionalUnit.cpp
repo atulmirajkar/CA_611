@@ -183,7 +183,7 @@ void InstrFetch::checkStatus(Simulator * simPtr)
 			
 		busy = true;
 		
-		if(FunctionalUnit::branchTakenInstrNumberPair.first && FunctionalUnit::isBranchNotTakenOver)
+		if(FunctionalUnit::branchTakenInstrNumberPair.first && FunctionalUnit::isBranchNotTakenOver && !PhysicalMemory::isOccupiedByIcache)
 		{
 			//+1 because labels storing from 0
 			inFileInstruction = branchTakenInstrNumberPair.second + 1;
@@ -526,7 +526,7 @@ void InstrDecode::checkStatus(Simulator * simPtr)
 				exceptString.append("]");
 				throw exceptString;
 			}
-			if(strcmpi(instr.opCode.c_str(),"hlt")==0)
+			if(_strcmpi(instr.opCode.c_str(),"hlt")==0)
 			{
 				//if branch taken
 				if(processHalt(instr,simPtr))
@@ -559,7 +559,10 @@ void InstrDecode::checkStatus(Simulator * simPtr)
 			
 		//if successful lock destination register
 		//if lock fails there is WAW hazard - stall in that case
-		if(!setLock(simPtr,instr))
+		//Fix for infinite loop - added 
+		//&& !(completionVector[instructionNumber-1]->structural)
+		//if stalled tue to structural hazard no need to set lock again
+		if(!setLock(simPtr,instr) && !(completionVector[instructionNumber-1]->structural))
 		{
 			completionVector[instructionNumber-1]->waw = true;
 			return;
@@ -594,7 +597,7 @@ bool InstrDecode::processHalt(SourceLine & instr,Simulator * simPtr)
 //if halt instruction and branch was not taken  return false
 void InstrDecode::processBranchInstruction(SourceLine & instr,Simulator * simPtr)
 {	
-	if(strcmpi(instr.opCode.c_str(),"bne")==0)
+	if(_strcmpi(instr.opCode.c_str(),"bne")==0)
 	{
 		if(instr.operandValues[1]!=instr.operandValues[2])
 		{
@@ -607,7 +610,7 @@ void InstrDecode::processBranchInstruction(SourceLine & instr,Simulator * simPtr
 			FunctionalUnit::branchTakenInstrNumberPair.second = simPtr->labelInstMap[instr.operands[0]];
 		}
 	}
-	else if(strcmpi(instr.opCode.c_str(),"beq")==0)
+	else if(_strcmpi(instr.opCode.c_str(),"beq")==0)
 	{
 		if(instr.operandValues[1]==instr.operandValues[2])
 		{
@@ -616,7 +619,7 @@ void InstrDecode::processBranchInstruction(SourceLine & instr,Simulator * simPtr
 			FunctionalUnit::branchTakenInstrNumberPair.second = simPtr->labelInstMap[instr.operands[0]];
 		}
 	}
-	else if(strcmpi(instr.opCode.c_str(),"j")==0)
+	else if(_strcmpi(instr.opCode.c_str(),"j")==0)
 	{
 		FunctionalUnit::branchTakenInstrNumberPair.first = true;
 		FunctionalUnit::branchTakenSameCycle = true;
@@ -630,7 +633,7 @@ void InstrDecode::processBranchInstruction(SourceLine & instr,Simulator * simPtr
 void InstrDecode::readRegisters(SourceLine & instr,Simulator * simPtr)
 {
 	//if functional unit not integer return
-	if(simPtr->symbolTable[instr.opCode].fuUsed!=FU_INTEGER && !(strcmpi(instr.opCode.c_str(),"bne")==0) &&  !(strcmpi(instr.opCode.c_str(),"beq")==0))
+	if(simPtr->symbolTable[instr.opCode].fuUsed!=FU_INTEGER && !(_strcmpi(instr.opCode.c_str(),"bne")==0) &&  !(_strcmpi(instr.opCode.c_str(),"beq")==0))
 	{
 		return;
 	}
@@ -649,7 +652,7 @@ void InstrDecode::readRegisters(SourceLine & instr,Simulator * simPtr)
 
 		//if store word "sw" we need to read operand at position 0 as well
 		//we dont care of store double
-		if(destFormat[i]-'0' == 0 && strcmpi(instr.opCode.c_str(),"sw")==0)
+		if(destFormat[i]-'0' == 0 && _strcmpi(instr.opCode.c_str(),"sw")==0)
 		{
 			source0 = instr.operands[0];
 			if(source0.find("R") != string::npos || source0.find("r") != string::npos)
@@ -772,55 +775,55 @@ void IntegerAlu::checkStatus(Simulator * simPtr)
 void IntegerAlu::executeIntegerInstruction(SourceLine & instr,Simulator * simPtr)
 {
 
-	if(strcmpi(instr.opCode.c_str(),"lw")==0)
+	if(_strcmpi(instr.opCode.c_str(),"lw")==0)
 	{
 		//from some location in data
 		instr.operandValues[0] = simPtr->data[((instr.operandValues[1] + instr.operandValues[2])-256)/4];
 	}
-	else if(strcmpi(instr.opCode.c_str(),"l.d")==0)
+	else if(_strcmpi(instr.opCode.c_str(),"l.d")==0)
 	{
 		
 	}
 	//do we need store word
-	else if(strcmpi(instr.opCode.c_str(),"sw")==0)
+	else if(_strcmpi(instr.opCode.c_str(),"sw")==0)
 	{
 		//to some location in data
 		simPtr->data[((instr.operandValues[1] + instr.operandValues[2])-256)/4] = instr.operandValues[0];
 	}
-	else if(strcmpi(instr.opCode.c_str(),"s.d")==0)
+	else if(_strcmpi(instr.opCode.c_str(),"s.d")==0)
 	{
 		
 	}
 	//do we need to store double??
-	else if(strcmpi(instr.opCode.c_str(),"dadd")==0)
+	else if(_strcmpi(instr.opCode.c_str(),"dadd")==0)
 	{
 		instr.operandValues[0] = instr.operandValues[1] + instr.operandValues[2];
 	} 
-	else if(strcmpi(instr.opCode.c_str(),"daddi")==0)
+	else if(_strcmpi(instr.opCode.c_str(),"daddi")==0)
 	{
 		instr.operandValues[0] = instr.operandValues[1] + instr.operandValues[2];
 	}
-	else if(strcmpi(instr.opCode.c_str(),"dsub")==0)
+	else if(_strcmpi(instr.opCode.c_str(),"dsub")==0)
 	{
 		instr.operandValues[0] = instr.operandValues[1] - instr.operandValues[2];
 	}
-	else if(strcmpi(instr.opCode.c_str(),"dsubi")==0)
+	else if(_strcmpi(instr.opCode.c_str(),"dsubi")==0)
 	{
 		instr.operandValues[0] = instr.operandValues[1] - instr.operandValues[2];
 	}
-	else if(strcmpi(instr.opCode.c_str(),"and")==0)
+	else if(_strcmpi(instr.opCode.c_str(),"and")==0)
 	{
 		instr.operandValues[0] = instr.operandValues[1] & instr.operandValues[2];
 	}
-	else if(strcmpi(instr.opCode.c_str(),"andi")==0)
+	else if(_strcmpi(instr.opCode.c_str(),"andi")==0)
 	{
 		instr.operandValues[0] = instr.operandValues[1] & instr.operandValues[2];
 	}
-	else if(strcmpi(instr.opCode.c_str(),"or")==0)
+	else if(_strcmpi(instr.opCode.c_str(),"or")==0)
 	{
 		instr.operandValues[0] = instr.operandValues[1] | instr.operandValues[2];
 	}
-	else if(strcmpi(instr.opCode.c_str(),"ori")==0)
+	else if(_strcmpi(instr.opCode.c_str(),"ori")==0)
 	{
 		instr.operandValues[0] = instr.operandValues[1] | instr.operandValues[2];
 	}
@@ -893,7 +896,7 @@ bool Memory::checkCacheAndAssignCyclesLeft(SourceLine instr,Simulator * simPtr,i
 	if(!isCycleAssigned && FunctionalUnit::memorydeque.front().second.exStagesLeft!=0)
 	{
 		
-		if(strcmpi(instr.opCode.c_str(),"lw")==0)
+		if(_strcmpi(instr.opCode.c_str(),"lw")==0)
 		{
 			FunctionalUnit::memorydeque.front().second.exStagesLeft = dCache.getLwLatency((instr.operandValues[1] + instr.operandValues[2]),simPtr);
 			//if cache hit
@@ -904,7 +907,7 @@ bool Memory::checkCacheAndAssignCyclesLeft(SourceLine instr,Simulator * simPtr,i
 			FunctionalUnit::completionVector[instructionNumber-1]->dataCacheRequest++;
 			instructionMatched = true;
 		}
-		else if(strcmpi(instr.opCode.c_str(),"l.d")==0)
+		else if(_strcmpi(instr.opCode.c_str(),"l.d")==0)
 		{
 			//FunctionalUnit::memorydeque.front().second.exStagesLeft = dCache.getLwLatency((instr.operandValues[1] + instr.operandValues[2]),simPtr)
 				//+ dCache.getLwLatency((instr.operandValues[1] + instr.operandValues[2]) + 4,simPtr);
@@ -925,7 +928,7 @@ bool Memory::checkCacheAndAssignCyclesLeft(SourceLine instr,Simulator * simPtr,i
 			FunctionalUnit::completionVector[instructionNumber-1]->dataCacheRequest+=2;
 			instructionMatched = true;
 		}
-		else if(strcmpi(instr.opCode.c_str(),"sw")==0)
+		else if(_strcmpi(instr.opCode.c_str(),"sw")==0)
 		{
 			FunctionalUnit::memorydeque.front().second.exStagesLeft = dCache.getSwLatency((instr.operandValues[1] + instr.operandValues[2]),simPtr);	
 			//if cache hit
@@ -936,7 +939,7 @@ bool Memory::checkCacheAndAssignCyclesLeft(SourceLine instr,Simulator * simPtr,i
 			FunctionalUnit::completionVector[instructionNumber-1]->dataCacheRequest++;
 			instructionMatched = true;
 		}
-		else if(strcmpi(instr.opCode.c_str(),"s.d")==0)
+		else if(_strcmpi(instr.opCode.c_str(),"s.d")==0)
 		{
 			//FunctionalUnit::memorydeque.front().second.exStagesLeft = dCache.getSwLatency((instr.operandValues[1] + instr.operandValues[2]),simPtr) + 
 			//	dCache.getSwLatency((instr.operandValues[1] + instr.operandValues[2]) + 4,simPtr);
@@ -961,11 +964,10 @@ bool Memory::checkCacheAndAssignCyclesLeft(SourceLine instr,Simulator * simPtr,i
 		//if cache hit latency cycles = data cache access cycles
 		if(instructionMatched)
 		{
-			//wrong condition for checking dcache hit
 			//assumption for bus contention
 			//in case of l.d or s.d the two addresses are checked one after the other ?
-			if((FunctionalUnit::memorydeque.front().second.exStagesLeft == simPtr->dCacheAccessCycles && (strcmpi(instr.opCode.c_str(),"sw")==0 || strcmpi(instr.opCode.c_str(),"lw")==0)) ||
-				(FunctionalUnit::memorydeque.front().second.exStagesLeft == 2*simPtr->dCacheAccessCycles && (strcmpi(instr.opCode.c_str(),"s.d")==0 || strcmpi(instr.opCode.c_str(),"l.d")==0)))
+			if((FunctionalUnit::memorydeque.front().second.exStagesLeft == simPtr->dCacheAccessCycles && (_strcmpi(instr.opCode.c_str(),"sw")==0 || _strcmpi(instr.opCode.c_str(),"lw")==0)) ||
+				(FunctionalUnit::memorydeque.front().second.exStagesLeft == 2*simPtr->dCacheAccessCycles && (_strcmpi(instr.opCode.c_str(),"s.d")==0 || _strcmpi(instr.opCode.c_str(),"l.d")==0)))
 			{
 				isDataCacheHit = true;
 			}
@@ -1447,7 +1449,7 @@ void WriteBackUnit::checkStatus(Simulator * simPtr)
 void releaseLock(Simulator * simPtr,SourceLine srcLine)
 {
 	//if instruction is store there is no locking of registers
-	if(strcmpi((srcLine.opCode).c_str(),"sw")==0 ||strcmpi((srcLine.opCode).c_str(),"s.d")==0)
+	if(_strcmpi((srcLine.opCode).c_str(),"sw")==0 ||_strcmpi((srcLine.opCode).c_str(),"s.d")==0)
 	{
 		return;
 	}
@@ -1501,7 +1503,7 @@ bool isRAWHazard(Simulator * simPtr,SourceLine srcLine)
 		//src 2
 		//src R2
 		//or if instruction is store
-		if(destFormat[i]-'0' == 2 || destFormat[i]-'0' == 1 || strcmpi((srcLine.opCode).c_str(),"sw")==0 || strcmpi((srcLine.opCode).c_str(),"s.d")==0)
+		if(destFormat[i]-'0' == 2 || destFormat[i]-'0' == 1 || _strcmpi((srcLine.opCode).c_str(),"sw")==0 || _strcmpi((srcLine.opCode).c_str(),"s.d")==0)
 		{
 			source1 = srcLine.operands[destFormat[i]-'0'];
 
@@ -1558,7 +1560,7 @@ bool setLock(Simulator * simPtr,SourceLine srcLine)
 {
 
 	//if instruction is store no need to lock the registers
-	if(strcmpi((srcLine.opCode).c_str(),"sw")==0 ||strcmpi((srcLine.opCode).c_str(),"s.d")==0)
+	if(_strcmpi((srcLine.opCode).c_str(),"sw")==0 ||_strcmpi((srcLine.opCode).c_str(),"s.d")==0)
 	{
 		return true;
 	}
